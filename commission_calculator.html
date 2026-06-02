@@ -313,9 +313,15 @@
           <label>Продажи за месяц ($)</label>
           <input type="number" id="s_monthly_sales" value="45000" step="1000">
         </div>
-        <div class="field">
-          <label>Сумма скидок за месяц ($)</label>
-          <input type="number" id="s_discounts" value="2000" step="100">
+        <div class="field-row">
+          <div class="field">
+            <label>Скидки — сумма ($)</label>
+            <input type="number" id="s_discounts" value="2000" step="100" min="0">
+          </div>
+          <div class="field">
+            <label>Скидки — % от продаж</label>
+            <input type="number" id="s_discount_pct" value="4.4" step="0.1" min="0" max="100">
+          </div>
         </div>
         <div class="field">
           <label>Малые заказы (до лимита, $)</label>
@@ -408,13 +414,33 @@ const DEFAULTS = {
   p_small_rate: 5, p_small_limit: 1000, p_repeat_rate: 3,
   p_c1: 0.9, p_c2: 0.8, p_c3: 0.6, p_c4: 0.4,
   p_reps: 6, p_rep_bonus: 40,
-  s_monthly_sales: 45000, s_discounts: 2000, s_small_sales: 800,
+  s_monthly_sales: 45000, s_discounts: 2000, s_discount_pct: 4.4, s_small_sales: 800,
   s_repeat_sales: 5000,
   q1: 70000, q2: 78000, q3: 92000,
   s_conv: 35, s_orders: 45000
 };
 
 function get(id) { return parseFloat($(id).value) || 0; }
+
+let _syncLock = false;
+function syncDiscountFromAmt() {
+  if (_syncLock) return;
+  _syncLock = true;
+  const sales = get('s_monthly_sales');
+  const amt   = get('s_discounts');
+  if (sales > 0) $('s_discount_pct').value = (Math.round((amt / sales) * 1000) / 10);
+  _syncLock = false;
+  calculate();
+}
+function syncDiscountFromPct() {
+  if (_syncLock) return;
+  _syncLock = true;
+  const sales = get('s_monthly_sales');
+  const pct   = get('s_discount_pct');
+  $('s_discounts').value = Math.round(sales * pct / 100);
+  _syncLock = false;
+  calculate();
+}
 
 function getCoeff(discountPct, c1, c2, c3, c4) {
   if (discountPct < 5)  return c1;
@@ -591,7 +617,15 @@ function resetDefaults() {
 
 // Listen to all inputs
 document.querySelectorAll('input[type="number"]').forEach(el => {
-  el.addEventListener('input', calculate);
+  if (el.id === 's_discounts') {
+    el.addEventListener('input', syncDiscountFromAmt);
+  } else if (el.id === 's_discount_pct') {
+    el.addEventListener('input', syncDiscountFromPct);
+  } else if (el.id === 's_monthly_sales') {
+    el.addEventListener('input', () => { syncDiscountFromPct(); });
+  } else {
+    el.addEventListener('input', calculate);
+  }
 });
 
 calculate();
