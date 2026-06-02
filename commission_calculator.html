@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Калькулятор мотивации продавцов</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    background: #f5f6fa;
+    color: #1a1a2e;
+    min-height: 100vh;
+  }
+
+  header {
+    background: #1F4E79;
+    color: white;
+    padding: 1.5rem 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  header h1 { font-size: 1.3rem; font-weight: 600; }
+  header p  { font-size: 0.85rem; opacity: 0.75; margin-top: 2px; }
+
+  .badge {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 0;
+    min-height: calc(100vh - 72px);
+  }
+
+  /* ── LEFT PANEL ── */
+  .sidebar {
+    background: #fff;
+    border-right: 1px solid #e2e6ea;
+    padding: 1.5rem;
+    overflow-y: auto;
+  }
+
+  .sidebar-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #8492a6;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .section {
+    margin-bottom: 1.5rem;
+    border: 1px solid #e8ecf0;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .section-head {
+    background: #f8f9fb;
+    padding: 0.65rem 1rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #1F4E79;
+    border-bottom: 1px solid #e8ecf0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .section-body { padding: 0.9rem 1rem; display: flex; flex-direction: column; gap: 0.75rem; }
+
+  .field label {
+    display: block;
+    font-size: 0.75rem;
+    color: #5a6478;
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+
+  .field input[type="number"] {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid #dce1e9;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: #1a1a2e;
+    background: #fff;
+    transition: border-color 0.15s;
+    -moz-appearance: textfield;
+  }
+  .field input[type="number"]::-webkit-inner-spin-button,
+  .field input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+  .field input[type="number"]:focus { outline: none; border-color: #1F4E79; }
+
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+  .reset-btn {
+    width: 100%;
+    padding: 9px;
+    background: #fff;
+    border: 1px solid #dce1e9;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    color: #5a6478;
+    cursor: pointer;
+    margin-top: 0.5rem;
+    transition: all 0.15s;
+  }
+  .reset-btn:hover { background: #f0f4f8; border-color: #1F4E79; color: #1F4E79; }
+
+  /* ── RIGHT PANEL ── */
+  .main {
+    padding: 1.5rem 2rem;
+    overflow-y: auto;
+  }
+
+  .results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+    margin-bottom: 1.5rem;
+  }
+
+  .metric {
+    background: #fff;
+    border: 1px solid #e8ecf0;
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+  }
+  .metric .label { font-size: 0.72rem; color: #8492a6; font-weight: 500; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .metric .value { font-size: 1.6rem; font-weight: 600; color: #1a1a2e; }
+  .metric .value.accent { color: #1A6B72; }
+  .metric .value.orange { color: #C55A11; }
+  .metric .sub { font-size: 0.72rem; color: #8492a6; margin-top: 3px; }
+
+  .card {
+    background: #fff;
+    border: 1px solid #e8ecf0;
+    border-radius: 10px;
+    margin-bottom: 1.2rem;
+    overflow: hidden;
+  }
+  .card-head {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #fff;
+    background: #1F4E79;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-head.teal  { background: #1A6B72; }
+  .card-head.orange{ background: #C55A11; }
+  .card-head.green { background: #375623; }
+  .card-head.gray  { background: #3d4a5c; }
+
+  .card-body { padding: 1.1rem 1.25rem; }
+
+  table.calc { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  table.calc td { padding: 6px 8px; border-bottom: 1px solid #f0f2f5; color: #3a4255; }
+  table.calc td:first-child { color: #8492a6; }
+  table.calc td:last-child { text-align: right; font-weight: 500; color: #1a1a2e; font-variant-numeric: tabular-nums; }
+  table.calc tr.total td { border-top: 2px solid #e2e6ea; border-bottom: none; padding-top: 10px; font-weight: 700; font-size: 0.95rem; }
+  table.calc tr.total td:last-child { color: #1A6B72; }
+  table.calc tr.bonus td:last-child { color: #C55A11; }
+  table.calc tr.zero td:last-child  { color: #8492a6; }
+
+  .note {
+    background: #fef9f0;
+    border-left: 3px solid #C55A11;
+    border-radius: 0 6px 6px 0;
+    padding: 0.6rem 0.9rem;
+    font-size: 0.8rem;
+    color: #7a4a1a;
+    margin-top: 0.75rem;
+  }
+
+  .note-teal {
+    background: #f0faf7;
+    border-left: 3px solid #1A6B72;
+    color: #0f4a3c;
+  }
+
+  .coeff-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+  .coeff-table th { background: #f4f6fa; padding: 7px 10px; text-align: left; color: #5a6478; font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .coeff-table td { padding: 7px 10px; border-bottom: 1px solid #f0f2f5; }
+  .coeff-table tr.active td { background: #e8f8f3; font-weight: 600; }
+  .coeff-table tr.active td.hl { color: #1A6B72; }
+
+  .section-subtitle {
+    font-size: 0.72rem;
+    color: #8492a6;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar { border-right: none; border-bottom: 1px solid #e2e6ea; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Калькулятор мотивации продавцов</h1>
+    <p>Редактируйте параметры слева — результат обновляется автоматически</p>
+  </div>
+  <span class="badge">v1.0 · Только для внутреннего использования</span>
+</header>
+
+<div class="layout">
+
+  <!-- ══════════════ SIDEBAR ══════════════ -->
+  <aside class="sidebar">
+    <div class="sidebar-title">⚙ Параметры системы</div>
+
+    <div class="section">
+      <div class="section-head">📊 Базовые ставки</div>
+      <div class="section-body">
+        <div class="field">
+          <label>Минимальный порог ($)</label>
+          <input type="number" id="p_threshold" value="35000" step="1000">
+        </div>
+        <div class="field">
+          <label>Базовая комиссия (%)</label>
+          <input type="number" id="p_base_rate" value="2" step="0.1" min="0" max="100">
+        </div>
+        <div class="field">
+          <label>Квартальный план ($)</label>
+          <input type="number" id="p_monthly_plan" value="75000" step="1000">
+        </div>
+        <div class="field">
+          <label>Сверхплановая комиссия (%)</label>
+          <input type="number" id="p_over_rate" value="3" step="0.1" min="0" max="100">
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">🎯 Спецставки</div>
+      <div class="section-body">
+        <div class="field-row">
+          <div class="field">
+            <label>Малые заказы (%)</label>
+            <input type="number" id="p_small_rate" value="5" step="0.1">
+          </div>
+          <div class="field">
+            <label>Лимит малого заказа ($)</label>
+            <input type="number" id="p_small_limit" value="1000" step="100">
+          </div>
+        </div>
+        <div class="field">
+          <label>Повторный клиент, новый адрес (%)</label>
+          <input type="number" id="p_repeat_rate" value="3" step="0.1">
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">📉 Коэффициенты скидок</div>
+      <div class="section-body">
+        <div class="field-row">
+          <div class="field"><label>До 5% → коэф.</label><input type="number" id="p_c1" value="0.9" step="0.05" min="0" max="1"></div>
+          <div class="field"><label>5–10% → коэф.</label><input type="number" id="p_c2" value="0.8" step="0.05" min="0" max="1"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>10–15% → коэф.</label><input type="number" id="p_c3" value="0.6" step="0.05" min="0" max="1"></div>
+          <div class="field"><label>15–24% → коэф.</label><input type="number" id="p_c4" value="0.4" step="0.05" min="0" max="1"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">🏆 Премия лучшего продавца</div>
+      <div class="section-body">
+        <div class="field-row">
+          <div class="field">
+            <label>Кол-во продавцов</label>
+            <input type="number" id="p_reps" value="6" step="1" min="1">
+          </div>
+          <div class="field">
+            <label>Ставка за продавца ($)</label>
+            <input type="number" id="p_rep_bonus" value="40" step="5">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">💰 Данные продавца (месяц)</div>
+      <div class="section-body">
+        <div class="field">
+          <label>Продажи за месяц ($)</label>
+          <input type="number" id="s_monthly_sales" value="45000" step="1000">
+        </div>
+        <div class="field">
+          <label>Сумма скидок за месяц ($)</label>
+          <input type="number" id="s_discounts" value="2000" step="100">
+        </div>
+        <div class="field">
+          <label>Малые заказы (до лимита, $)</label>
+          <input type="number" id="s_small_sales" value="800" step="100">
+        </div>
+        <div class="field">
+          <label>Повторные клиенты, новый адрес ($)</label>
+          <input type="number" id="s_repeat_sales" value="5000" step="500">
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">📅 Квартальные данные</div>
+      <div class="section-body">
+        <div class="field">
+          <label>Продажи М1 ($)</label>
+          <input type="number" id="q1" value="70000" step="1000">
+        </div>
+        <div class="field">
+          <label>Продажи М2 ($)</label>
+          <input type="number" id="q2" value="78000" step="1000">
+        </div>
+        <div class="field">
+          <label>Продажи М3 ($)</label>
+          <input type="number" id="q3" value="92000" step="1000">
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">🎖 Score продавца (месяц)</div>
+      <div class="section-body">
+        <div class="field">
+          <label>Конверсия по лидам (%)</label>
+          <input type="number" id="s_conv" value="35" step="1" min="0" max="100">
+        </div>
+        <div class="field">
+          <label>Принято заказов ($)</label>
+          <input type="number" id="s_orders" value="45000" step="1000">
+        </div>
+      </div>
+    </div>
+
+    <button class="reset-btn" onclick="resetDefaults()">↺ Сбросить к стандартным значениям</button>
+  </aside>
+
+  <!-- ══════════════ MAIN ══════════════ -->
+  <main class="main">
+
+    <!-- SUMMARY METRICS -->
+    <div class="results-grid" id="summary-grid">
+      <!-- filled by JS -->
+    </div>
+
+    <!-- MONTHLY CALC -->
+    <div class="card">
+      <div class="card-head">💵 Расчёт комиссии за месяц</div>
+      <div class="card-body" id="monthly-body"></div>
+    </div>
+
+    <!-- QUARTERLY CALC -->
+    <div class="card">
+      <div class="card-head teal">📅 Квартальный перерасчёт</div>
+      <div class="card-body" id="quarterly-body"></div>
+    </div>
+
+    <!-- DISCOUNT COEFFICIENTS -->
+    <div class="card">
+      <div class="card-head gray">📉 Применение коэффициента скидок</div>
+      <div class="card-body" id="discount-body"></div>
+    </div>
+
+    <!-- TOP SELLER BONUS -->
+    <div class="card">
+      <div class="card-head green">🏆 Премия лучшего продавца</div>
+      <div class="card-body" id="bonus-body"></div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmt = n => '$' + Math.round(n).toLocaleString('ru-RU');
+const fmtPct = n => (Math.round(n * 10) / 10) + '%';
+
+const DEFAULTS = {
+  p_threshold: 35000, p_base_rate: 2, p_monthly_plan: 75000, p_over_rate: 3,
+  p_small_rate: 5, p_small_limit: 1000, p_repeat_rate: 3,
+  p_c1: 0.9, p_c2: 0.8, p_c3: 0.6, p_c4: 0.4,
+  p_reps: 6, p_rep_bonus: 40,
+  s_monthly_sales: 45000, s_discounts: 2000, s_small_sales: 800,
+  s_repeat_sales: 5000,
+  q1: 70000, q2: 78000, q3: 92000,
+  s_conv: 35, s_orders: 45000
+};
+
+function get(id) { return parseFloat($(id).value) || 0; }
+
+function getCoeff(discountPct, c1, c2, c3, c4) {
+  if (discountPct < 5)  return c1;
+  if (discountPct < 10) return c2;
+  if (discountPct < 15) return c3;
+  return c4;
+}
+
+function getCoeffLabel(discountPct) {
+  if (discountPct < 5)  return 'до 5%';
+  if (discountPct < 10) return '5–10%';
+  if (discountPct < 15) return '10–15%';
+  return '15–24%';
+}
+
+function calculate() {
+  const threshold    = get('p_threshold');
+  const baseRate     = get('p_base_rate') / 100;
+  const monthlyPlan  = get('p_monthly_plan');
+  const overRate     = get('p_over_rate') / 100;
+  const smallRate    = get('p_small_rate') / 100;
+  const smallLimit   = get('p_small_limit');
+  const repeatRate   = get('p_repeat_rate') / 100;
+  const c1 = get('p_c1'), c2 = get('p_c2'), c3 = get('p_c3'), c4 = get('p_c4');
+  const reps         = get('p_reps');
+  const repBonus     = get('p_rep_bonus');
+
+  const monthlySales  = get('s_monthly_sales');
+  const discounts     = get('s_discounts');
+  const smallSales    = get('s_small_sales');
+  const repeatSales   = get('s_repeat_sales');
+  const q1 = get('q1'), q2 = get('q2'), q3 = get('q3');
+  const conv          = get('s_conv') / 100;
+  const orders        = get('s_orders');
+
+  // ── MONTHLY ──
+  const aboveThreshold = Math.max(0, monthlySales - threshold);
+  const baseCommRaw    = aboveThreshold * baseRate;
+
+  const discountPct    = monthlySales > 0 ? (discounts / monthlySales) * 100 : 0;
+  const coeff          = getCoeff(discountPct, c1, c2, c3, c4);
+  const coeffLabel     = getCoeffLabel(discountPct);
+
+  const baseComm       = baseCommRaw * coeff;
+
+  // Small orders
+  const smallComm      = smallSales <= smallLimit ? smallSales * smallRate * coeff : 0;
+
+  // Repeat clients
+  const repeatCommRaw  = repeatSales * repeatRate;
+  const repeatComm     = repeatCommRaw * coeff;
+
+  const monthlyTotal   = baseComm + smallComm + repeatComm;
+
+  // ── QUARTERLY ──
+  const quarterlyFact  = q1 + q2 + q3;
+  const quarterlyPlan  = monthlyPlan * 3;
+  const qThreshold     = threshold * 3;
+  const qBase          = quarterlyPlan - qThreshold;  // base for 2% if plan met
+
+  // Already paid each month (2% above threshold)
+  const alreadyPaid    = [q1, q2, q3].reduce((sum, m) => sum + Math.max(0, m - threshold) * baseRate * coeff, 0);
+  const overPlan       = Math.max(0, quarterlyFact - quarterlyPlan);
+  const overBonus      = overPlan * overRate * coeff;
+  const quarterlyTotal = alreadyPaid + overBonus;
+
+  // ── BONUS ──
+  const firstPlace     = reps * repBonus;
+  const secondPlace    = firstPlace / 3;
+  const score          = conv * orders;
+
+  // ── RENDER SUMMARY ──
+  $('summary-grid').innerHTML = `
+    <div class="metric">
+      <div class="label">Комиссия за месяц</div>
+      <div class="value accent">${fmt(monthlyTotal)}</div>
+      <div class="sub">после коэф. скидок ${coeff}</div>
+    </div>
+    <div class="metric">
+      <div class="label">Итого за квартал</div>
+      <div class="value accent">${fmt(quarterlyTotal)}</div>
+      <div class="sub">вкл. доплату ${fmt(overBonus)}</div>
+    </div>
+    <div class="metric">
+      <div class="label">Премия 1-е место</div>
+      <div class="value orange">${fmt(firstPlace)}</div>
+      <div class="sub">2-е место: ${fmt(secondPlace)}</div>
+    </div>
+    <div class="metric">
+      <div class="label">Score продавца</div>
+      <div class="value">${Math.round(score).toLocaleString('ru-RU')}</div>
+      <div class="sub">конверсия ${fmtPct(conv * 100)} × ${fmt(orders)}</div>
+    </div>
+  `;
+
+  // ── RENDER MONTHLY ──
+  const noSmall  = smallSales > smallLimit;
+  $('monthly-body').innerHTML = `
+    <table class="calc">
+      <tr><td>Продажи за месяц</td><td>${fmt(monthlySales)}</td></tr>
+      <tr><td>Минимальный порог</td><td>− ${fmt(threshold)}</td></tr>
+      <tr><td>База для комиссии</td><td>${fmt(aboveThreshold)}</td></tr>
+      <tr><td>Базовая комиссия (${fmtPct(baseRate * 100)}), до коэф.</td><td>${fmt(baseCommRaw)}</td></tr>
+      <tr><td>Коэф. скидок (скидка ${fmtPct(discountPct)}, диапазон ${coeffLabel})</td><td>× ${coeff}</td></tr>
+      <tr><td>Базовая комиссия после коэф.</td><td>${fmt(baseComm)}</td></tr>
+      <tr><td colspan="2" style="padding-top:10px; font-size:0.72rem; color:#8492a6; text-transform:uppercase; letter-spacing:0.04em;">Спецставки</td></tr>
+      <tr class="${noSmall ? 'zero' : ''}"><td>Малые заказы (${fmt(smallSales)}${noSmall ? ' — превышает лимит' : ''}) × ${fmtPct(smallRate * 100)} × ${coeff}</td><td>${fmt(smallComm)}</td></tr>
+      <tr><td>Повторные клиенты, новый адрес (${fmt(repeatSales)}) × ${fmtPct(repeatRate * 100)} × ${coeff}</td><td>${fmt(repeatComm)}</td></tr>
+      <tr class="total"><td>Итого комиссия за месяц</td><td>${fmt(monthlyTotal)}</td></tr>
+    </table>
+    ${noSmall ? '<div class="note">Малый заказ превышает лимит ' + fmt(smallLimit) + ' — ставка 5% не применяется</div>' : ''}
+  `;
+
+  // ── RENDER QUARTERLY ──
+  const overSymbol = overPlan > 0 ? '🟢' : '⚪';
+  $('quarterly-body').innerHTML = `
+    <table class="calc">
+      <tr><td>Квартальный план (${fmt(monthlyPlan)} × 3)</td><td>${fmt(quarterlyPlan)}</td></tr>
+      <tr><td>Фактические продажи за квартал</td><td>${fmt(quarterlyFact)}</td></tr>
+      <tr><td>М1: ${fmt(q1)} / М2: ${fmt(q2)} / М3: ${fmt(q3)}</td><td></td></tr>
+      <tr><td>Выплачено помесячно (2%, с учётом коэф.)</td><td>${fmt(alreadyPaid)}</td></tr>
+      <tr class="${overPlan > 0 ? 'bonus' : 'zero'}"><td>${overSymbol} Превышение плана</td><td>${fmt(overPlan)}</td></tr>
+      <tr class="${overPlan > 0 ? 'bonus' : 'zero'}"><td>Доплата за сверхплан (${fmtPct(overRate * 100)} × коэф. ${coeff})</td><td>${fmt(overBonus)}</td></tr>
+      <tr class="total"><td>Итого выплачено за квартал</td><td>${fmt(quarterlyTotal)}</td></tr>
+    </table>
+    ${overPlan <= 0 ? '<div class="note">Квартальный план не выполнен — доплата 3% не начисляется. До плана: ' + fmt(quarterlyPlan - quarterlyFact) + '</div>' : '<div class="note note-teal">Квартальный план перевыполнен на ' + fmt(overPlan) + ' — доплата ' + fmt(overBonus) + ' выплачивается по итогам квартала</div>'}
+  `;
+
+  // ── RENDER DISCOUNT TABLE ──
+  const rows = [
+    { range: 'До 5%',   coef: c1, active: discountPct < 5 },
+    { range: '5–10%',   coef: c2, active: discountPct >= 5 && discountPct < 10 },
+    { range: '10–15%',  coef: c3, active: discountPct >= 10 && discountPct < 15 },
+    { range: '15–24%',  coef: c4, active: discountPct >= 15 },
+  ];
+  $('discount-body').innerHTML = `
+    <p style="font-size:0.8rem; color:#5a6478; margin-bottom:0.75rem;">Средняя скидка по всем заказам: <strong>${fmtPct(discountPct)}</strong> (${fmt(discounts)} от ${fmt(monthlySales)})</p>
+    <table class="coeff-table">
+      <tr><th>Диапазон скидок</th><th>Коэффициент</th><th>Влияние</th><th>Статус</th></tr>
+      ${rows.map(r => `
+        <tr class="${r.active ? 'active' : ''}">
+          <td>${r.range}</td>
+          <td class="${r.active ? 'hl' : ''}">× ${r.coef}</td>
+          <td>−${Math.round((1 - r.coef) * 100)}%</td>
+          <td>${r.active ? '✅ Применяется' : ''}</td>
+        </tr>
+      `).join('')}
+    </table>
+  `;
+
+  // ── RENDER BONUS ──
+  $('bonus-body').innerHTML = `
+    <table class="calc">
+      <tr><td>Количество продавцов в команде</td><td>${reps}</td></tr>
+      <tr><td>Ставка за продавца</td><td>${fmt(repBonus)}</td></tr>
+      <tr><td>Премия 1-го места (${reps} × ${fmt(repBonus)})</td><td>${fmt(firstPlace)}</td></tr>
+      <tr><td>Премия 2-го места (${fmt(firstPlace)} ÷ 3)</td><td>${fmt(secondPlace)}</td></tr>
+    </table>
+    <div style="margin-top:1rem; border-top:1px solid #f0f2f5; padding-top:1rem;">
+      <p class="section-subtitle">Score этого продавца</p>
+      <table class="calc">
+        <tr><td>Конверсия по лидам</td><td>${fmtPct(conv * 100)}</td></tr>
+        <tr><td>Сумма принятых заказов</td><td>${fmt(orders)}</td></tr>
+        <tr class="total"><td>Score = конверсия × заказы</td><td>${Math.round(score).toLocaleString('ru-RU')}</td></tr>
+      </table>
+    </div>
+  `;
+}
+
+function resetDefaults() {
+  Object.entries(DEFAULTS).forEach(([id, val]) => { if ($(id)) $(id).value = val; });
+  calculate();
+}
+
+// Listen to all inputs
+document.querySelectorAll('input[type="number"]').forEach(el => {
+  el.addEventListener('input', calculate);
+});
+
+calculate();
+</script>
+</body>
+</html>
