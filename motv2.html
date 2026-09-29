@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Калькулятор мотивации продавцов</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: two-column workbench — inputs on the left, a sticky payslip on the right; stacks on phones with the payslip first */
+:root{
+  --bg:#f3f5f8; --panel:#ffffff; --fg:#17202e; --muted:#5d6878; --line:#dde3ec;
+  --accent:#1f4e8c; --accent-soft:#e6eef9; --good:#1c7a4a; --good-soft:#e3f3ea;
+  --bad:#b3261e; --bad-soft:#fbe9e7; --warn:#8a5a00; --warn-soft:#fdf1d8;
+  --input:#f8fafc;
+  --f-body:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-num:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10151d; --panel:#18202b; --fg:#e6ebf2; --muted:#98a3b3; --line:#2a3544;
+  --accent:#7fa9e6; --accent-soft:#1e2e45; --good:#5cc98f; --good-soft:#15301f;
+  --bad:#f08a80; --bad-soft:#3a1c1a; --warn:#e8b95a; --warn-soft:#3a2c10; --input:#121922; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151d; --panel:#18202b; --fg:#e6ebf2; --muted:#98a3b3; --line:#2a3544;
+  --accent:#7fa9e6; --accent-soft:#1e2e45; --good:#5cc98f; --good-soft:#15301f;
+  --bad:#f08a80; --bad-soft:#3a1c1a; --warn:#e8b95a; --warn-soft:#3a2c10; --input:#121922; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.45;padding-inline:16px;padding-block:24px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+header h1{margin:0;font-size:26px;font-weight:700;text-wrap:balance;letter-spacing:-.01em}
+header p{margin:6px 0 0;color:var(--muted);max-width:70ch}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}.summary{order:-1;position:static!important}}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+section.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+section.card h2{margin:0;font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--accent);font-weight:700}
+.hint{color:var(--muted);font-size:12.5px;margin:0}
+.fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px 14px}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted);font-weight:500;min-width:0}
+input,select{font:inherit;color:var(--fg);background:var(--input);border:1px solid var(--line);border-radius:7px;padding:8px 10px;width:100%;min-width:0}
+input[type=number]{font-family:var(--f-num);font-size:13.5px}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.check{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--fg);cursor:pointer}
+.check input{width:16px;height:16px;accent-color:var(--accent)}
+.table-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:700px}
+td select[id^=ch]{min-width:118px} td select[id^=pay]{min-width:84px} td input{min-width:96px}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;font-weight:600;padding:0 6px 6px}
+td{padding:4px 6px;vertical-align:middle}
+td.num{font-family:var(--f-num);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+th.num{text-align:right}
+.btn{font:inherit;font-weight:600;border:1px solid var(--line);background:var(--panel);color:var(--accent);border-radius:7px;padding:8px 12px;cursor:pointer}
+.btn:hover{background:var(--accent-soft)}
+.x{border:none;background:none;color:var(--muted);font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px}
+.x:hover{color:var(--bad);background:var(--bad-soft)}
+.row-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px}
+.pill.good{background:var(--good-soft);color:var(--good)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.neutral{background:var(--accent-soft);color:var(--accent)}
+/* Summary / payslip */
+.summary{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:16px}
+.total-label{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+.total{font-family:var(--f-num);font-size:36px;font-weight:700;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
+.total small{font-size:16px;color:var(--muted);font-weight:500;margin-left:4px}
+.sub{color:var(--muted);font-size:12.5px;font-family:var(--f-num)}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.bar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--line)}
+.bar span{display:block;height:100%}
+.lines{display:flex;flex-direction:column}
+.line{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:7px 0;border-bottom:1px dashed var(--line)}
+.line:last-child{border-bottom:none}
+.dot{width:10px;height:10px;border-radius:3px;align-self:center}
+.line .name{min-width:0}
+.line .name div{font-size:13.5px}
+.line .name .det{font-size:11.5px;color:var(--muted)}
+.line .val{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:13.5px;font-weight:700;white-space:nowrap}
+.val.neg{color:var(--bad)}
+.qbox{border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:4px}
+.qtotal{font-family:var(--f-num);font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+.foot{font-size:11.5px;color:var(--muted);margin:0}
+.tiers{display:flex;flex-wrap:wrap;gap:6px}
+.tier{font-family:var(--f-num);font-size:11.5px;padding:3px 8px;border-radius:6px;border:1px solid var(--line);color:var(--muted)}
+.tier.on{background:var(--accent);border-color:var(--accent);color:var(--panel);font-weight:700}
+@media (prefers-reduced-motion:no-preference){.bar span{transition:width .25s ease}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Калькулятор мотивации продавцов</h1>
+    <p>Меняйте цифры слева — расчёт справа обновляется сразу. В форме уже стоят примерные значения, замените их своими. Суммы продаж — в $, выплаты — в BYN по курсу, который вы укажете.</p>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+
+      <section class="card">
+        <h2>Месяц и планы</h2>
+        <p class="hint">Два плана с одинаковой суммой, но разной ролью: план по принятым определяет бонус за стандарт обслуживания, план по отгруженным — порог для % от отгрузки. Отгружено считается из таблицы ниже.</p>
+        <div class="fields">
+          <label class="f">Оклад, BYN<input id="salary" type="number" min="0" step="10" value="2040"></label>
+          <label class="f">Курс USD → BYN<input id="rate" type="number" min="0" step="0.01" value="3.00"></label>
+          <label class="f">План по принятым, $<input id="planAcc" type="number" min="0" step="1000" value="60000"></label>
+          <label class="f">Принято заказов, $<input id="accepted" type="number" min="0" step="1000" value="64000"></label>
+          <label class="f">План по отгруженным, $<input id="plan" type="number" min="0" step="1000" value="60000"></label>
+          <label class="f">Минимальный порог отгрузки
+            <select id="thrMode"><option value="fixed">30 000 $</option><option value="plan">40% плана по отгруженным</option></select></label>
+          <label class="f">Рабочих дней в месяце<input id="daysTotal" type="number" min="1" step="1" value="22"></label>
+          <label class="f">Отработано дней<input id="daysWorked" type="number" min="0" step="1" value="22"></label>
+        </div>
+        <label class="check"><input id="probation" type="checkbox"> Испытательный срок (первые 3 месяца — порог не действует)</label>
+      </section>
+
+      <section class="card">
+        <h2>Отгрузки за месяц</h2>
+        <p class="hint">Одна строка — одна группа отгрузок с одинаковыми условиями. Ставка = базовая ставка канала × коэффициент скидки. Для Wholesale ставка по карте не установлена.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Канал</th><th>Скидка клиенту</th><th>Оплата</th><th class="num">Сумма, $</th><th class="num">Ставка</th><th class="num">Бонус, $</th><th></th></tr></thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+        <div class="row-actions">
+          <button class="btn" id="addRow" type="button">+ Добавить строку</button>
+          <span class="hint" id="shipTotal"></span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>График, отзывы и доп. задачи</h2>
+        <div class="fields">
+          <label class="f">Смещённый график
+            <select id="shift">
+              <option value="0">нет</option>
+              <option value="400">16:30 – 01:00 · 400 BYN/мес</option>
+              <option value="1428">20:00 – 04:00 · 1 428 BYN/мес</option>
+            </select></label>
+          <label class="f">Субботы 17:30–00:00, дней<input id="saturdays" type="number" min="0" step="1" value="2"></label>
+          <label class="f">Положительные отзывы Google<input id="goodRev" type="number" min="0" step="1" value="3"></label>
+          <label class="f">Доп. функционал, BYN (до 250)<input id="extra" type="number" min="0" max="250" step="10" value="0"></label>
+        </div>
+        <div class="fields">
+          <label class="f">Плохие отзывы / жалобы по вине специалиста<input id="badRev" type="number" min="0" step="1" value="0"></label>
+          <label class="f">Сумма отгрузок по этим заказам, $<input id="badRevSum" type="number" min="0" step="100" value="0"></label>
+          <label class="f">Правило для плохого отзыва
+            <select id="badRule">
+              <option value="pct">0,5% от отгрузки, мин. 100 BYN</option>
+              <option value="fix">200 BYN за каждый</option>
+            </select></label>
+        </div>
+        <p class="hint">В мотивации два разных правила для плохого отзыва — выберите действующее.</p>
+      </section>
+
+      <section class="card">
+        <h2>Штрафы</h2>
+        <div class="fields">
+          <label class="f">Chargeback / Refund по вине специалиста, $<input id="chargeback" type="number" min="0" step="100" value="0"></label>
+          <label class="f">Дебиторская задолженность, $<input id="debt" type="number" min="0" step="100" value="0"></label>
+          <label class="f">Неподписанный SO / неверный Sales Tax, шт.<input id="unsigned" type="number" min="0" step="1" value="0"></label>
+          <label class="f">Некорректный реплейсмент / акт, шт.<input id="replace" type="number" min="0" step="1" value="0"></label>
+          <label class="f">Ущерб по типичным кейсам, $<input id="damage" type="number" min="0" step="50" value="0"></label>
+        </div>
+        <p class="hint">Chargeback: бонусы от отгрузок за месяц × 0,5, но удержание не больше суммы чарджбека. Дебиторка: 50 BYN за каждые 500 $. Ущерб: 50 BYN за каждые 250 $, максимум 500 BYN.</p>
+      </section>
+
+      <section class="card" id="quarterCard">
+        <h2>Квартальный экстрабонус · раз в квартал</h2>
+        <p class="hint">Выплачивается в конце квартала отдельно от месячной зарплаты. Бонусы от отгрузок за 3 месяца уже выплачены, поэтому доплачивается только разница: сумма бонусов × (множитель − 1). 100–129% плана по отгруженным → × 1,35, 130% и выше → × 1,8.</p>
+        <div class="fields">
+          <label class="f">Квартальный план по отгруженным, $<input id="qPlan" type="number" min="0" step="1000" value="180000"></label>
+          <label class="f">Отгружено за квартал, $<input id="qShip" type="number" min="0" step="1000" value="190000"></label>
+        </div>
+        <div class="fields">
+          <label class="f">Бонус от отгрузок, 1-й месяц, BYN<input id="qM1" type="number" min="0" step="10" value="1000"></label>
+          <label class="f">Бонус от отгрузок, 2-й месяц, BYN<input id="qM2" type="number" min="0" step="10" value="1150"></label>
+          <label class="f">Бонус от отгрузок, 3-й месяц, BYN<input id="qM3" type="number" min="0" step="10" value=""></label>
+        </div>
+        <div class="row-actions">
+          <button class="btn" id="useMonth" type="button">Подставить бонус из расчёта выше в 3-й месяц</button>
+          <div class="pills" id="qPills"></div>
+        </div>
+      </section>
+    </div>
+
+    <aside class="summary" aria-live="polite">
+      <div>
+        <div class="total-label">К выплате за месяц</div>
+        <div class="total" id="total">—</div>
+        <div class="sub" id="totalUsd"></div>
+      </div>
+      <div class="pills" id="pills"></div>
+      <div class="bar" id="bar"></div>
+      <div class="lines" id="lines"></div>
+      <div>
+        <div class="total-label" style="margin-bottom:6px">Стандарт обслуживания — % плана по принятым</div>
+        <div class="tiers" id="tiers"></div>
+      </div>
+      <div class="qbox">
+        <div class="total-label">Квартальная доплата · раз в квартал</div>
+        <div class="qtotal" id="qTotal">—</div>
+        <div class="sub" id="qSub"></div>
+      </div>
+      <p class="foot">Расчёт ориентировочный. Окончательную сумму утверждает руководитель отдела.</p>
+    </aside>
+  </div>
+</div>
+
+<script>
+const RATES={retail:{wire:0.65,card:0.5},wholesale:{wire:0.8,card:null}};
+const TIERS={
+  retail:[["Особый, коэф. 1,3 (уточнить)",1.3],["0–3%",1],["4–10%",0.85],["11–20%",0.65],["21–37,5%",0.5],["более 37,5%",0.3]],
+  wholesale:[["0%",1],["до 10%",0.85],["до 20%",0.65],["до 30%",0.5],["31–100%",0.3]]
+};
+const SERVICE=[[150,3,"150%+"],[130,2,"130–149"],[115,1.5,"115–129"],[100,1,"100–114"],[85,0.8,"85–99"],[70,0.5,"70–84"],[0,0,"<70"]];
+const SERVICE_BASE=300, SAT=115, GOOD_REV=30;
+const EXAMPLE=[
+  {ch:"retail",tier:1,pay:"wire",amt:26000},
+  {ch:"retail",tier:2,pay:"card",amt:12000},
+  {ch:"retail",tier:3,pay:"wire",amt:8000},
+  {ch:"wholesale",tier:1,pay:"wire",amt:16000}
+];
+const $=id=>document.getElementById(id);
+const nf=new Intl.NumberFormat("ru-RU",{maximumFractionDigits:0});
+const nf2=new Intl.NumberFormat("ru-RU",{maximumFractionDigits:2});
+const pf=v=>new Intl.NumberFormat("ru-RU",{minimumFractionDigits:2,maximumFractionDigits:4}).format(v)+"%";
+const num=id=>{const v=parseFloat($(id).value);return isFinite(v)&&v>0?v:0};
+let rid=0, lastMonthBonus=0;
+
+function addRow(r){
+  const id=++rid, tr=document.createElement("tr"); tr.dataset.id=id;
+  tr.innerHTML=`<td><select id="ch${id}" aria-label="Канал"><option value="retail">Retail</option><option value="wholesale">Wholesale</option></select></td>
+    <td><select id="tier${id}" aria-label="Скидка"></select></td>
+    <td><select id="pay${id}" aria-label="Оплата"><option value="wire">Wire</option><option value="card">Card</option></select></td>
+    <td><input id="amt${id}" type="number" min="0" step="500" aria-label="Сумма, $" style="text-align:right"></td>
+    <td class="num" data-k="rate"></td><td class="num" data-k="bonus"></td>
+    <td><button class="x" type="button" aria-label="Удалить строку">×</button></td>`;
+  $("rows").appendChild(tr);
+  const ch=tr.querySelector(`#ch${id}`), tier=tr.querySelector(`#tier${id}`), pay=tr.querySelector(`#pay${id}`);
+  ch.value=r.ch; fillTiers(tier,r.ch,r.tier); pay.value=r.pay; tr.querySelector(`#amt${id}`).value=r.amt||"";
+  syncPay(ch,pay);
+  ch.addEventListener("change",()=>{fillTiers(tier,ch.value,ch.value==="retail"?1:0);syncPay(ch,pay);calc()});
+  tr.querySelector(".x").addEventListener("click",()=>{tr.remove();calc()});
+}
+function fillTiers(sel,ch,idx){sel.innerHTML=TIERS[ch].map((t,i)=>`<option value="${i}">${t[0]} · ×${nf2.format(t[1])}</option>`).join("");sel.value=idx}
+function syncPay(ch,pay){const w=ch.value==="wholesale";pay.querySelector('[value=card]').disabled=w;if(w)pay.value="wire"}
+
+function calc(){
+  const fx=num("rate"), plan=num("plan"), planAcc=num("planAcc"), acc=num("accepted");
+  // shipments
+  let shipped=0, bonusUsd=0;
+  document.querySelectorAll("#rows tr").forEach(tr=>{
+    const id=tr.dataset.id, ch=$("ch"+id).value, t=TIERS[ch][+$("tier"+id).value], pay=$("pay"+id).value;
+    const amt=num("amt"+id), base=RATES[ch][pay]??RATES[ch].wire, rate=base*t[1], b=amt*rate/100;
+    shipped+=amt; bonusUsd+=b;
+    tr.querySelector('[data-k=rate]').textContent=pf(rate);
+    tr.querySelector('[data-k=bonus]').textContent=nf2.format(b);
+  });
+  $("shipTotal").textContent=`Отгружено всего: ${nf.format(shipped)} $ · бонус ${nf2.format(bonusUsd)} $`;
+
+  // threshold
+  const probation=$("probation").checked;
+  const dT=Math.max(1,num("daysTotal")), dW=Math.min(num("daysWorked"),dT);
+  const thrBase=$("thrMode").value==="plan"?plan*0.4:30000;
+  const thr=thrBase*dW/dT, thrMet=probation||shipped>=thr;
+  const shipBonusBase=thrMet?bonusUsd*fx:0;
+  const cb=Math.min(shipBonusBase*0.5, num("chargeback")*fx);
+  lastMonthBonus=Math.max(0,shipBonusBase-cb);
+
+  // service standard
+  const pct=planAcc>0?acc/planAcc*100:0;
+  const tier=SERVICE.find(s=>pct>=s[0]);
+  const service=SERVICE_BASE*tier[1];
+
+  const shift=parseFloat($("shift").value), sat=num("saturdays")*SAT;
+  const good=num("goodRev")*GOOD_REV, extra=Math.min(250,num("extra"));
+  const badN=num("badRev");
+  const bad=badN? ($("badRule").value==="fix"?200*badN:Math.max(0.005*num("badRevSum")*fx,100*badN)) :0;
+  const debt=Math.floor(num("debt")/500)*50, unsigned=num("unsigned")*100, repl=num("replace")*50;
+  const dmg=Math.min(500,Math.floor(num("damage")/250)*50);
+  const fines=cb+bad+debt+unsigned+repl+dmg;
+  const salary=num("salary");
+
+  const plus=[
+    ["Оклад",salary,"фиксированно","var(--accent)"],
+    ["Смещённый график и субботы",shift+sat,`${shift?nf.format(shift)+" BYN график · ":""}${num("saturdays")} сб × ${SAT}`,"#6b8fc9"],
+    ["% от отгрузки",shipBonusBase,thrMet?`${nf2.format(bonusUsd)} $ × курс ${nf2.format(fx)}`:`порог ${nf.format(thr)} $ не достигнут`,"#2e9e6a"],
+    ["Стандарт обслуживания",service,`принято ${nf.format(pct)}% плана → коэф. ${nf2.format(tier[1])}`,"#c9a24a"],
+    ["Отзывы и доп. функционал",good+extra,`${num("goodRev")} отз. × ${GOOD_REV}${extra?` + доп. ${nf.format(extra)}`:""}`,"#a47fc9"]
+  ];
+  const minus=[
+    ["Chargeback / Refund",cb],["Плохие отзывы",bad],["Дебиторка",debt],
+    ["Sales Order / Sales Tax",unsigned],["Реплейсмент / акт",repl],["Ущерб по кейсам",dmg]
+  ].filter(m=>m[1]>0);
+
+  const gross=plus.reduce((s,p)=>s+p[1],0), total=gross-fines;
+  $("total").innerHTML=`${nf.format(total)}<small>BYN</small>`;
+  $("totalUsd").textContent=fx?`≈ ${nf.format(total/fx)} $ · начислено ${nf.format(gross)}, удержано ${nf.format(fines)}`:"";
+
+  const pills=[];
+  pills.push(`<span class="pill ${planAcc&&acc>=planAcc?"good":"neutral"}">Принято ${planAcc?nf.format(pct):0}% плана</span>`);
+  pills.push(`<span class="pill ${plan&&shipped>=plan?"good":"neutral"}">Отгружено ${plan?nf.format(shipped/plan*100):0}% плана</span>`);
+  pills.push(probation?`<span class="pill neutral">Испытательный срок</span>`:
+    thrMet?`<span class="pill good">Порог ${nf.format(thr)} $ пройден</span>`:`<span class="pill bad">Порог ${nf.format(thr)} $ не пройден</span>`);
+  if(fines>0) pills.push(`<span class="pill warn">Есть удержания</span>`);
+  $("pills").innerHTML=pills.join("");
+
+  $("bar").innerHTML=gross>0?plus.filter(p=>p[1]>0).map(p=>`<span title="${p[0]}" style="width:${p[1]/gross*100}%;background:${p[3]}"></span>`).join(""):"";
+
+  $("lines").innerHTML=plus.map(p=>`<div class="line"><span class="dot" style="background:${p[3]}"></span>
+      <div class="name"><div>${p[0]}</div><div class="det">${p[2]}</div></div><div class="val">${nf.format(p[1])}</div></div>`).join("")
+    + minus.map(m=>`<div class="line"><span class="dot" style="background:var(--bad)"></span>
+      <div class="name"><div>${m[0]}</div></div><div class="val neg">−${nf.format(m[1])}</div></div>`).join("");
+
+  const qPlan=num("qPlan"), qPct=qPlan>0?num("qShip")/qPlan*100:0;
+  const qMult=qPct>=130?1.8:qPct>=100?1.35:1;
+  const qSum=num("qM1")+num("qM2")+num("qM3"), qPay=qSum*(qMult-1);
+  $("qPills").innerHTML=`<span class="pill ${qMult>1?"good":"neutral"}">План квартала ${nf.format(qPct)}% → ${qMult>1?"× "+nf2.format(qMult):"без экстрабонуса"}</span>`;
+  $("qTotal").innerHTML=`${nf.format(qPay)}<small style="font-size:13px;color:var(--muted);margin-left:4px">BYN</small>`;
+  $("qSub").textContent=qMult>1?`${nf.format(qSum)} × ${nf2.format(qMult-1)} · план квартала ${nf.format(qPct)}%`:`план квартала ${nf.format(qPct)}% — меньше 100%`;
+  $("tiers").innerHTML=SERVICE.map(s=>`<span class="tier ${s===tier?"on":""}">${s[2]} · ${nf.format(SERVICE_BASE*s[1])}</span>`).join("");
+}
+
+EXAMPLE.forEach(addRow);
+$("addRow").addEventListener("click",()=>{addRow({ch:"retail",tier:1,pay:"wire",amt:0});calc()});
+$("useMonth").addEventListener("click",()=>{$("qM3").value=Math.round(lastMonthBonus);calc()});
+document.addEventListener("input",calc);
+document.addEventListener("change",calc);
+calc();
+$("qM3").value=Math.round(lastMonthBonus);calc();
+</script>
+</body>
+</html>
