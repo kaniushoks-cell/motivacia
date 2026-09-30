@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Калькулятор мотивации продавцов</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: two-column workbench — inputs on the left, a sticky payslip on the right; stacks on phones with the payslip first */
+:root{
+  --bg:#f3f5f8; --panel:#ffffff; --fg:#17202e; --muted:#5d6878; --line:#dde3ec;
+  --accent:#1f4e8c; --accent-soft:#e6eef9; --good:#1c7a4a; --good-soft:#e3f3ea;
+  --bad:#b3261e; --bad-soft:#fbe9e7; --warn:#8a5a00; --warn-soft:#fdf1d8;
+  --input:#f8fafc;
+  --f-body:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-num:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10151d; --panel:#18202b; --fg:#e6ebf2; --muted:#98a3b3; --line:#2a3544;
+  --accent:#7fa9e6; --accent-soft:#1e2e45; --good:#5cc98f; --good-soft:#15301f;
+  --bad:#f08a80; --bad-soft:#3a1c1a; --warn:#e8b95a; --warn-soft:#3a2c10; --input:#121922; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151d; --panel:#18202b; --fg:#e6ebf2; --muted:#98a3b3; --line:#2a3544;
+  --accent:#7fa9e6; --accent-soft:#1e2e45; --good:#5cc98f; --good-soft:#15301f;
+  --bad:#f08a80; --bad-soft:#3a1c1a; --warn:#e8b95a; --warn-soft:#3a2c10; --input:#121922; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.45;padding-inline:16px;padding-block:24px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+header h1{margin:0;font-size:26px;font-weight:700;text-wrap:balance;letter-spacing:-.01em}
+header p{margin:6px 0 0;color:var(--muted);max-width:70ch}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}.summary{order:-1;position:static!important}}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+section.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
+section.card h2{margin:0;font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--accent);font-weight:700}
+.hint{color:var(--muted);font-size:12.5px;margin:0}
+.fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px 14px}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:12.5px;color:var(--muted);font-weight:500;min-width:0}
+input,select{font:inherit;color:var(--fg);background:var(--input);border:1px solid var(--line);border-radius:7px;padding:8px 10px;width:100%;min-width:0}
+input[type=number]{font-family:var(--f-num);font-size:13.5px}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.check{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--fg);cursor:pointer}
+.check input{width:16px;height:16px;accent-color:var(--accent)}
+.table-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:700px}
+td select[id^=ch]{min-width:118px} td select[id^=pay]{min-width:84px} td input{min-width:96px}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);text-align:left;font-weight:600;padding:0 6px 6px}
+td{padding:4px 6px;vertical-align:middle}
+td.num{font-family:var(--f-num);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+th.num{text-align:right}
+.btn{font:inherit;font-weight:600;border:1px solid var(--line);background:var(--panel);color:var(--accent);border-radius:7px;padding:8px 12px;cursor:pointer}
+.btn:hover{background:var(--accent-soft)}
+.x{border:none;background:none;color:var(--muted);font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px}
+.x:hover{color:var(--bad);background:var(--bad-soft)}
+.row-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px}
+.pill.good{background:var(--good-soft);color:var(--good)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.neutral{background:var(--accent-soft);color:var(--accent)}
+/* Summary / payslip */
+.summary{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:16px}
+.total-label{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+.total{font-family:var(--f-num);font-size:36px;font-weight:700;letter-spacing:-.02em;line-height:1.1;font-variant-numeric:tabular-nums}
+.total small{font-size:16px;color:var(--muted);font-weight:500;margin-left:4px}
+.sub{color:var(--muted);font-size:12.5px;font-family:var(--f-num)}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.bar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--line)}
+.bar span{display:block;height:100%}
+.lines{display:flex;flex-direction:column}
+.line{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:7px 0;border-bottom:1px dashed var(--line)}
+.line:last-child{border-bottom:none}
+.dot{width:10px;height:10px;border-radius:3px;align-self:center}
+.line .name{min-width:0}
+.line .name div{font-size:13.5px}
+.line .name .det{font-size:11.5px;color:var(--muted)}
+.line .val{font-family:var(--f-num);font-variant-numeric:tabular-nums;font-size:13.5px;font-weight:700;white-space:nowrap}
+.val.neg{color:var(--bad)}
+.qbox{border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:4px}
+.qtotal{font-family:var(--f-num);font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+.foot{font-size:11.5px;color:var(--muted);margin:0}
+.tiers{display:flex;flex-wrap:wrap;gap:6px}
+.tier{font-family:var(--f-num);font-size:11.5px;padding:3px 8px;border-radius:6px;border:1px solid var(--line);color:var(--muted)}
+.tier.on{background:var(--accent);border-color:var(--accent);color:var(--panel);font-weight:700}
+@media (prefers-reduced-motion:no-preference){.bar span{transition:width .25s ease}}
+
+details.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;min-width:0}
+details.card>summary{list-style:none;cursor:pointer;padding:18px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+details.card>summary::-webkit-details-marker{display:none}
+details.card>summary h2{margin:0;font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--accent);font-weight:700}
+details.card>summary .chev{color:var(--muted);font-size:12px}
+details.card[open]>summary .chev::after{content:"свернуть ▲"} details.card:not([open])>summary .chev::after{content:"развернуть ▼"}
+.pbody{padding:0 18px 18px;display:flex;flex-direction:column;gap:18px}
+.pgroup{display:flex;flex-direction:column;gap:10px;padding-top:14px;border-top:1px solid var(--line)}
+.pgroup h3{margin:0;font-size:13px;font-weight:700;color:var(--fg)}
+.pfields{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px 12px}
+.pfields label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);min-width:0}
+.pfields .u{font-size:11px;color:var(--muted)}
+input.changed{border-color:var(--warn);background:var(--warn-soft);color:var(--warn);font-weight:700}
+.ptable{display:grid;grid-template-columns:minmax(0,1fr) 110px 110px;gap:6px 10px;align-items:center;max-width:520px}
+.ptable .h{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+.ptable .lbl{font-size:13px}
+.compare{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;background:var(--warn-soft)}
+.compare .row{display:flex;justify-content:space-between;gap:10px;font-size:12.5px}
+.compare .row b{font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+.delta.up{color:var(--good)} .delta.down{color:var(--bad)}
+.scen{display:flex;flex-direction:column;gap:8px}
+.scen-add{display:flex;gap:6px}
+.scen-add input{flex:1}
+.stable{width:100%;min-width:0;border-collapse:collapse;font-size:12.5px}
+.stable th{padding:4px 4px 6px;font-size:10.5px}
+.stable td{padding:6px 4px;border-top:1px dashed var(--line)}
+.stable td.num{font-size:12px}
+.stable tr.active td{background:var(--accent-soft)}
+.link{border:none;background:none;color:var(--accent);font:inherit;font-size:12px;cursor:pointer;padding:2px 4px;border-radius:4px;text-decoration:underline}
+.link.del{color:var(--muted)}
+.summary{max-height:calc(100vh - 32px);overflow:auto}
+@media (max-width:900px){.summary{max-height:none}}
+
+table.mtx{min-width:640px;margin-bottom:6px}
+table.mtx td input{min-width:78px;text-align:right}
+table.mtx td:first-child{font-size:13px;white-space:nowrap}
+table.mtx td.b{font-weight:700}
+table.mtx tfoot td{border-top:1px solid var(--line);padding-top:8px;font-weight:600;font-size:13px}
+table.mtx th:first-child{color:var(--accent)}
+input:disabled{opacity:.45}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Калькулятор мотивации продавцов</h1>
+    <p>Меняйте цифры слева — расчёт справа обновляется сразу. Коэффициенты мотивации тоже можно менять: изменённые подсвечиваются, а справа видно, как выплата отличается от текущей мотивации. Суммы продаж — в $, выплаты — в BYN по курсу, который вы укажете.</p>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+
+      <details class="card" id="paramsCard" open>
+        <summary><h2>Коэффициенты мотивации</h2><span class="chev"></span></summary>
+        <div class="pbody">
+          <div class="row-actions">
+            <p class="hint" id="changedInfo">Сейчас стоят коэффициенты текущей мотивации.</p>
+            <button class="btn" id="resetParams" type="button">Вернуть текущую мотивацию</button>
+          </div>
+          <div id="paramGroups"></div>
+        </div>
+      </details>
+
+      <section class="card">
+        <h2>Месяц и планы</h2>
+        <p class="hint">Два плана с одинаковой суммой, но разной ролью: план по принятым определяет бонус за стандарт обслуживания, план по отгруженным — порог для % от отгрузки. Отгружено считается из таблицы ниже.</p>
+        <div class="fields">
+          <label class="f">Курс USD → BYN<input id="rate" type="number" min="0" step="0.01" value="3.00"></label>
+          <label class="f">План по принятым, $<input id="planAcc" type="number" min="0" step="1000" value="60000"></label>
+          <label class="f">Принято заказов, $<input id="accepted" type="number" min="0" step="1000" value="64000"></label>
+          <label class="f">План по отгруженным, $<input id="plan" type="number" min="0" step="1000" value="60000"></label>
+          <label class="f">Минимальный порог отгрузки
+            <select id="thrMode"><option value="fixed">фиксированный</option><option value="plan">% от плана по отгруженным</option></select></label>
+          <label class="f">Рабочих дней в месяце<input id="daysTotal" type="number" min="1" step="1" value="22"></label>
+          <label class="f">Отработано дней<input id="daysWorked" type="number" min="0" step="1" value="22"></label>
+        </div>
+        <label class="check"><input id="probation" type="checkbox"> Испытательный срок (первые 3 месяца — порог не действует)</label>
+      </section>
+
+      <section class="card">
+        <h2>Отгрузки за месяц</h2>
+        <p class="hint">Разнесите отгрузки месяца по скидкам и способу оплаты. Ставка = базовая ставка × коэффициент скидки; бонус по строке считается сразу. Коэффициенты тоже можно менять — изменённые подсвечиваются.</p>
+        <div id="matrix"></div>
+        <p class="hint" id="shipTotal"></p>
+      </section>
+
+      <section class="card">
+        <h2>График, отзывы и доп. задачи</h2>
+        <div class="fields">
+          <label class="f">Смещённый график
+            <select id="shift">
+              <option value="0">нет</option>
+              <option value="1"></option>
+              <option value="2"></option>
+            </select></label>
+          <label class="f">Субботы 17:30–00:00, дней<input id="saturdays" type="number" min="0" step="1" value="2"></label>
+          <label class="f">Положительные отзывы Google<input id="goodRev" type="number" min="0" step="1" value="3"></label>
+          <label class="f">Доп. функционал, BYN<input id="extra" type="number" min="0" step="10" value="0"></label>
+        </div>
+        <div class="fields">
+          <label class="f">Плохие отзывы / жалобы по вине специалиста<input id="badRev" type="number" min="0" step="1" value="0"></label>
+          <label class="f">Сумма отгрузок по этим заказам, $<input id="badRevSum" type="number" min="0" step="100" value="0"></label>
+          <label class="f">Правило для плохого отзыва
+            <select id="badRule">
+              <option value="pct">% от отгрузки, с минимумом</option>
+              <option value="fix">фиксированная сумма за каждый</option>
+            </select></label>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Штрафы</h2>
+        <div class="fields">
+          <label class="f">Chargeback / Refund по вине специалиста, $<input id="chargeback" type="number" min="0" step="100" value="0"></label>
+          <label class="f">Дебиторская задолженность, $<input id="debt" type="number" min="0" step="100" value="0"></label>
+          <label class="f">Неподписанный SO / неверный Sales Tax, шт.<input id="unsigned" type="number" min="0" step="1" value="0"></label>
+          <label class="f">Некорректный реплейсмент / акт, шт.<input id="replace" type="number" min="0" step="1" value="0"></label>
+          <label class="f">Ущерб по типичным кейсам, $<input id="damage" type="number" min="0" step="50" value="0"></label>
+        </div>
+        <p class="hint">Размеры штрафов задаются в блоке «Коэффициенты мотивации».</p>
+      </section>
+
+      <section class="card" id="quarterCard">
+        <h2>Квартальный экстрабонус · раз в квартал</h2>
+        <p class="hint">Выплачивается в конце квартала отдельно от месячной зарплаты. Бонусы от отгрузок за 3 месяца уже выплачены, поэтому доплачивается разница: сумма бонусов × (множитель − 1). Если поле 3-го месяца пустое, берётся бонус из расчёта выше.</p>
+        <div class="fields">
+          <label class="f">Квартальный план по отгруженным, $<input id="qPlan" type="number" min="0" step="1000" value="180000"></label>
+          <label class="f">Отгружено за квартал, $<input id="qShip" type="number" min="0" step="1000" value="190000"></label>
+        </div>
+        <div class="fields">
+          <label class="f">Бонус от отгрузок, 1-й месяц, BYN<input id="qM1" type="number" min="0" step="10" value="1000"></label>
+          <label class="f">Бонус от отгрузок, 2-й месяц, BYN<input id="qM2" type="number" min="0" step="10" value="1150"></label>
+          <label class="f">Бонус от отгрузок, 3-й месяц, BYN<input id="qM3" type="number" min="0" step="10" placeholder="авто: из расчёта"></label>
+        </div>
+        <div class="pills" id="qPills"></div>
+      </section>
+    </div>
+
+    <aside class="summary" aria-live="polite">
+      <div>
+        <div class="total-label">К выплате за месяц</div>
+        <div class="total" id="total">—</div>
+        <div class="sub" id="totalUsd"></div>
+      </div>
+      <div class="compare" id="compare" hidden></div>
+      <div class="pills" id="pills"></div>
+      <div class="bar" id="bar"></div>
+      <div class="lines" id="lines"></div>
+      <div>
+        <div class="total-label" style="margin-bottom:6px">Стандарт обслуживания — % плана по принятым</div>
+        <div class="tiers" id="tiers"></div>
+      </div>
+      <div class="qbox">
+        <div class="total-label">Квартальная доплата · раз в квартал</div>
+        <div class="qtotal" id="qTotal">—</div>
+        <div class="sub" id="qSub"></div>
+      </div>
+      <div class="qbox scen">
+        <div class="total-label">Сценарии коэффициентов</div>
+        <p class="foot">Все сценарии считаются на одних и тех же цифрах слева. Сохраняются в этом браузере.</p>
+        <div class="scen-add">
+          <input id="scenName" type="text" placeholder="Название, например «Retail 0,7%»" aria-label="Название сценария">
+          <button class="btn" id="saveScen" type="button">Сохранить</button>
+        </div>
+        <table class="stable">
+          <thead><tr><th>Сценарий</th><th class="num">Месяц</th><th class="num">Квартал</th><th></th></tr></thead>
+          <tbody id="scenRows"></tbody>
+        </table>
+      </div>
+      <p class="foot">Расчёт ориентировочный. Окончательную сумму утверждает руководитель отдела.</p>
+    </aside>
+  </div>
+</div>
+
+<script>
+/* ---------- Коэффициенты текущей мотивации ---------- */
+const DEFAULTS={
+  salary:2040, shift1:400, shift2:1428, sat:115,
+  retailWire:0.65, retailCard:0.5, wholesaleWire:0.8, wholesaleCard:null,
+  retailK:[1.3,1,0.85,0.65,0.5,0.3], wholesaleK:[1,0.85,0.65,0.5,0.3],
+  thrFixed:30000, thrPct:40,
+  serviceBase:300, serviceMin:[150,130,115,100,85,70,0], serviceK:[3,2,1.5,1,0.8,0.5,0],
+  qT1:100, qMult1:1.35, qT2:130, qMult2:1.8,
+  goodRev:30, extraMax:250, badPct:0.5, badMin:100, badFix:200,
+  cbK:0.5, debtStep:500, debtFine:50, soFine:100, replFine:50, dmgStep:250, dmgFine:50, dmgMax:500
+};
+const TIER_LABELS={
+  retail:["Особый (уточнить)","0–3%","4–10%","11–20%","21–37,5%","более 37,5%"],
+  wholesale:["0%","до 10%","до 20%","до 30%","31–100%"]
+};
+const GROUPS=[
+  {title:"Оклад и доплаты за график",items:[["salary","Оклад","BYN/мес"],["shift1","График 16:30–01:00","BYN/мес"],["shift2","График 20:00–04:00","BYN/мес"],["sat","Суббота 17:30–00:00","BYN/день"]]},
+  {title:"% от отгрузки — базовые ставки",items:[["retailWire","Retail · wire","%"],["retailCard","Retail · card","%"],["wholesaleWire","Wholesale · wire","%"],["wholesaleCard","Wholesale · card","% (пусто — нельзя)"]]},
+  {title:"Минимальный порог отгрузки",items:[["thrFixed","Фиксированный порог","$"],["thrPct","Порог от плана по отгруженным","%"]]},
+  {title:"Стандарт обслуживания",items:[["serviceBase","Базовая сумма","BYN"]],service:true},
+  {title:"Квартальный экстрабонус",items:[["qT1","Уровень 1: от","% плана"],["qMult1","Уровень 1: множитель","×"],["qT2","Уровень 2: от","% плана"],["qMult2","Уровень 2: множитель","×"]]},
+  {title:"Отзывы и доп. функционал",items:[["goodRev","Положительный отзыв","BYN"],["extraMax","Доп. функционал, максимум","BYN"],["badPct","Плохой отзыв","% от отгрузки"],["badMin","Плохой отзыв, минимум","BYN"],["badFix","Плохой отзыв, фикс.","BYN"]]},
+  {title:"Штрафы",items:[["cbK","Chargeback: коэф. к бонусам","×"],["debtFine","Дебиторка: штраф","BYN"],["debtStep","Дебиторка: за каждые","$"],["soFine","Sales Order / Sales Tax","BYN"],["replFine","Реплейсмент / акт","BYN"],["dmgFine","Ущерб: штраф","BYN"],["dmgStep","Ущерб: за каждые","$"],["dmgMax","Ущерб: максимум","BYN"]]}
+];
+const EXAMPLE={"retail_wire_1":26000,"retail_card_2":12000,"retail_wire_3":8000,"wholesale_wire_1":16000};
+const SLICE_COLORS=["var(--accent)","#6b8fc9","#2e9e6a","#c9a24a","#a47fc9"];
+
+const $=id=>document.getElementById(id);
+const nf=new Intl.NumberFormat("ru-RU",{maximumFractionDigits:0});
+const nf2=new Intl.NumberFormat("ru-RU",{maximumFractionDigits:2});
+const pf=v=>new Intl.NumberFormat("ru-RU",{minimumFractionDigits:2,maximumFractionDigits:4}).format(v)+"%";
+const num=id=>{const v=parseFloat($(id).value);return isFinite(v)&&v>0?v:0};
+const clone=o=>JSON.parse(JSON.stringify(o));
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const store={get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+
+let P=Object.assign(clone(DEFAULTS),store.get("motiv.params")||{});
+let scenarios=store.get("motiv.scenarios")||[];
+let rid=0;
+
+/* ---------- Панель коэффициентов ---------- */
+function pid(key,i){return "p_"+key+(i===undefined?"":"_"+i)}
+function pInput(key,i,step){
+  const v=i===undefined?P[key]:P[key][i];
+  return `<input id="${pid(key,i)}" data-key="${key}" ${i!==undefined?`data-i="${i}"`:""} type="number" step="${step||"any"}" value="${v===null?"":v}">`;
+}
+function buildParams(){
+  $("paramGroups").innerHTML=GROUPS.map(g=>{
+    let h=`<div class="pgroup"><h3>${g.title}</h3>`;
+    if(g.items) h+=`<div class="pfields">`+g.items.map(([k,l,u])=>`<label>${l}${pInput(k)}<span class="u">${u}</span></label>`).join("")+`</div>`;
+    if(g.table){
+      const ch=g.table==="retailK"?"retail":"wholesale";
+      h+=`<div class="ptable"><span class="h">Скидка клиенту</span><span class="h">Коэффициент</span><span class="h">Итог · wire</span>`+
+        TIER_LABELS[ch].map((l,i)=>`<span class="lbl">${l}</span>${pInput(g.table,i,"0.05")}<span class="num" id="eff_${ch}_${i}"></span>`).join("")+`</div>`;
+    }
+    if(g.service){
+      h+=`<div class="ptable"><span class="h">Уровень</span><span class="h">От, % плана</span><span class="h">Коэффициент</span>`+
+        P.serviceMin.map((_,i)=>`<span class="lbl">Уровень ${i+1}</span>${i===P.serviceMin.length-1?`<span class="hint">ниже остальных</span>`:pInput("serviceMin",i,"1")}${pInput("serviceK",i,"0.1")}`).join("")+`</div>`;
+    }
+    return h+`</div>`;
+  }).join("");
+  bindParamInputs($("paramGroups"));
+}
+function bindParamInputs(root){
+  root.querySelectorAll("input[data-key]").forEach(inp=>inp.addEventListener("input",e=>{
+    e.stopPropagation();
+    const k=inp.dataset.key, i=inp.dataset.i, raw=inp.value.trim(), v=raw===""?null:parseFloat(raw);
+    const dflt=i===undefined?DEFAULTS[k]:DEFAULTS[k][+i];
+    const val=(v===null||!isFinite(v))?(k==="wholesaleCard"?null:dflt):v;
+    if(i===undefined)P[k]=val;else P[k][+i]=val;
+    store.set("motiv.params",P); refresh();
+  }));
+}
+function markChanged(){
+  let n=0;
+  document.querySelectorAll("input[data-key]").forEach(inp=>{
+    const k=inp.dataset.key,i=inp.dataset.i;
+    const cur=i===undefined?P[k]:P[k][+i], d=i===undefined?DEFAULTS[k]:DEFAULTS[k][+i];
+    const ch=cur!==d; inp.classList.toggle("changed",ch); if(ch)n++;
+    inp.title=ch?`В текущей мотивации: ${d===null?"не применяется":nf2.format(d)}`:"";
+  });
+  ["retail","wholesale"].forEach(ch=>TIER_LABELS[ch].forEach((_,i)=>{
+    const el=$(`eff_${ch}_${i}`); if(el) el.textContent=pf((ch==="retail"?P.retailWire:P.wholesaleWire)*P[ch+"K"][i]);
+  }));
+  $("changedInfo").textContent=n?`Изменено коэффициентов: ${n}. Наведите на поле, чтобы увидеть исходное значение.`:"Сейчас стоят коэффициенты текущей мотивации.";
+  return n;
+}
+
+/* ---------- Матрица отгрузок ---------- */
+const CH_NAMES={retail:"Retail",wholesale:"Wholesale"};
+function buildMatrix(){
+  $("matrix").innerHTML=["retail","wholesale"].map(ch=>`
+    <div class="table-wrap"><table class="mtx">
+      <thead><tr><th>${CH_NAMES[ch]} · скидка</th><th class="num">Коэф.</th><th class="num">Wire, $</th><th class="num">Ставка</th><th class="num">Card, $</th><th class="num">Ставка</th><th class="num">Бонус, $</th></tr></thead>
+      <tbody>${TIER_LABELS[ch].map((l,i)=>`<tr>
+        <td>${l}</td>
+        <td>${pInput(ch+"K",i,"0.05")}</td>
+        <td><input id="amt_${ch}_wire_${i}" class="amt" type="number" min="0" step="500" value="${EXAMPLE[`${ch}_wire_${i}`]||""}" aria-label="${CH_NAMES[ch]} ${l}, wire, $"></td>
+        <td class="num" id="r_${ch}_wire_${i}"></td>
+        <td><input id="amt_${ch}_card_${i}" class="amt" type="number" min="0" step="500" value="${EXAMPLE[`${ch}_card_${i}`]||""}" aria-label="${CH_NAMES[ch]} ${l}, card, $"></td>
+        <td class="num" id="r_${ch}_card_${i}"></td>
+        <td class="num b" id="b_${ch}_${i}"></td></tr>`).join("")}</tbody>
+      <tfoot><tr><td>Итого ${CH_NAMES[ch]}</td><td></td><td class="num" id="tw_${ch}"></td><td></td><td class="num" id="tc_${ch}"></td><td></td><td class="num b" id="tb_${ch}"></td></tr></tfoot>
+    </table></div>`).join("");
+  bindParamInputs($("matrix"));
+}
+function refreshLabels(){
+  TIER_LABELS.wholesale.forEach((_,i)=>{const el=$("amt_wholesale_card_"+i);el.disabled=P.wholesaleCard===null;el.placeholder=el.disabled?"—":""});
+  const sh=$("shift").options; sh[1].textContent=`16:30 – 01:00 · ${nf.format(P.shift1)} BYN/мес`; sh[2].textContent=`20:00 – 04:00 · ${nf.format(P.shift2)} BYN/мес`;
+  $("thrMode").options[0].textContent=`${nf.format(P.thrFixed)} $`;
+  $("thrMode").options[1].textContent=`${nf2.format(P.thrPct)}% плана по отгруженным`;
+  $("badRule").options[0].textContent=`${nf2.format(P.badPct)}% от отгрузки, мин. ${nf.format(P.badMin)} BYN`;
+  $("badRule").options[1].textContent=`${nf.format(P.badFix)} BYN за каждый`;
+}
+
+/* ---------- Расчёт ---------- */
+function readInputs(){
+  return {
+    fx:num("rate"), plan:num("plan"), planAcc:num("planAcc"), acc:num("accepted"),
+    thrMode:$("thrMode").value, dT:Math.max(1,num("daysTotal")), dW:num("daysWorked"), probation:$("probation").checked,
+    rows:["retail","wholesale"].flatMap(ch=>TIER_LABELS[ch].flatMap((_,i)=>["wire","card"].map(pay=>({ch,tier:i,pay,amt:(ch==="wholesale"&&pay==="card"&&P.wholesaleCard===null)?0:num(`amt_${ch}_${pay}_${i}`)})))),
+    shift:+$("shift").value, sats:num("saturdays"), goodN:num("goodRev"), extra:num("extra"),
+    badN:num("badRev"), badSum:num("badRevSum"), badRule:$("badRule").value,
+    cb:num("chargeback"), debt:num("debt"), unsigned:num("unsigned"), repl:num("replace"), damage:num("damage"),
+    qPlan:num("qPlan"), qShip:num("qShip"), qM1:num("qM1"), qM2:num("qM2"), qM3:$("qM3").value.trim()===""?null:num("qM3")
+  };
+}
+function baseRate(P,ch,pay){
+  if(ch==="retail") return pay==="card"?P.retailCard:P.retailWire;
+  return pay==="card"&&P.wholesaleCard!==null?P.wholesaleCard:P.wholesaleWire;
+}
+function compute(P,I){
+  let shipped=0,bonusUsd=0;
+  const rows=I.rows.map(r=>{const rate=baseRate(P,r.ch,r.pay)*P[r.ch+"K"][r.tier], b=r.amt*rate/100; shipped+=r.amt; bonusUsd+=b; return {rate,b}});
+  const dW=Math.min(I.dW,I.dT);
+  const thrBase=I.thrMode==="plan"?I.plan*P.thrPct/100:P.thrFixed;
+  const thr=thrBase*dW/I.dT, thrMet=I.probation||shipped>=thr;
+  const shipBonus=thrMet?bonusUsd*I.fx:0;
+  const cb=Math.min(shipBonus*P.cbK, I.cb*I.fx);
+  const monthShipBonus=Math.max(0,shipBonus-cb);
+  const pct=I.planAcc>0?I.acc/I.planAcc*100:0;
+  const order=P.serviceMin.map((m,i)=>({m:i===P.serviceMin.length-1?-Infinity:m,k:P.serviceK[i],i})).sort((a,b)=>b.m-a.m);
+  const tierIdx=(order.find(t=>pct>=t.m)||order[order.length-1]).i;
+  const service=P.serviceBase*P.serviceK[tierIdx];
+  const shift=I.shift===1?P.shift1:I.shift===2?P.shift2:0, sat=I.sats*P.sat;
+  const good=I.goodN*P.goodRev, extra=Math.min(P.extraMax,I.extra);
+  const bad=I.badN?(I.badRule==="fix"?P.badFix*I.badN:Math.max(P.badPct/100*I.badSum*I.fx,P.badMin*I.badN)):0;
+  const debt=P.debtStep>0?Math.floor(I.debt/P.debtStep)*P.debtFine:0;
+  const unsigned=I.unsigned*P.soFine, repl=I.repl*P.replFine;
+  const dmg=P.dmgStep>0?Math.min(P.dmgMax,Math.floor(I.damage/P.dmgStep)*P.dmgFine):0;
+  const plus=[
+    ["Оклад",P.salary,"фиксированно"],
+    ["Смещённый график и субботы",shift+sat,`${shift?nf.format(shift)+" BYN график · ":""}${I.sats} сб × ${nf.format(P.sat)}`],
+    ["% от отгрузки",shipBonus,thrMet?`${nf2.format(bonusUsd)} $ × курс ${nf2.format(I.fx)}`:`порог ${nf.format(thr)} $ не достигнут`],
+    ["Стандарт обслуживания",service,`принято ${nf.format(pct)}% плана → коэф. ${nf2.format(P.serviceK[tierIdx])}`],
+    ["Отзывы и доп. функционал",good+extra,`${I.goodN} отз. × ${nf.format(P.goodRev)}${extra?` + доп. ${nf.format(extra)}`:""}`]
+  ];
+  const minus=[["Chargeback / Refund",cb],["Плохие отзывы",bad],["Дебиторка",debt],["Sales Order / Sales Tax",unsigned],["Реплейсмент / акт",repl],["Ущерб по кейсам",dmg]].filter(m=>m[1]>0);
+  const gross=plus.reduce((s,p)=>s+p[1],0), fines=minus.reduce((s,m)=>s+m[1],0), total=gross-fines;
+  const qPct=I.qPlan>0?I.qShip/I.qPlan*100:0;
+  const [lo,hi]=P.qT1<=P.qT2?[[P.qT1,P.qMult1],[P.qT2,P.qMult2]]:[[P.qT2,P.qMult2],[P.qT1,P.qMult1]];
+  const qMult=qPct>=hi[0]?hi[1]:qPct>=lo[0]?lo[1]:1;
+  const qSum=I.qM1+I.qM2+(I.qM3===null?monthShipBonus:I.qM3), qPay=qSum*(qMult-1);
+  return {rows,shipped,bonusUsd,thr,thrMet,pct,tierIdx,plus,minus,gross,fines,total,qPct,qMult,qSum,qPay,monthShipBonus};
+}
+function deltaHtml(a,b){
+  const d=a-b; if(Math.abs(d)<0.5) return `<span class="delta">без изменений</span>`;
+  const p=b?` (${d>0?"+":"−"}${nf.format(Math.abs(d/b*100))}%)`:"";
+  return `<span class="delta ${d>0?"up":"down"}">${d>0?"+":"−"}${nf.format(Math.abs(d))}${p}</span>`;
+}
+
+function refresh(){
+  refreshLabels();
+  const changed=markChanged();
+  const I=readInputs(), R=compute(P,I), R0=compute(DEFAULTS,I);
+
+  const agg={};
+  I.rows.forEach((r,k)=>{
+    const rt=$(`r_${r.ch}_${r.pay}_${r.tier}`); rt.textContent=(r.ch==="wholesale"&&r.pay==="card"&&P.wholesaleCard===null)?"—":pf(R.rows[k].rate);
+    const key=r.ch+"_"+r.tier; agg[key]=(agg[key]||0)+R.rows[k].b;
+    const t=agg["t_"+r.ch]||(agg["t_"+r.ch]={w:0,c:0,b:0}); t[r.pay==="wire"?"w":"c"]+=r.amt; t.b+=R.rows[k].b;
+  });
+  ["retail","wholesale"].forEach(ch=>{
+    TIER_LABELS[ch].forEach((_,i)=>{const v=agg[ch+"_"+i];$(`b_${ch}_${i}`).textContent=v?nf2.format(v):"—"});
+    const t=agg["t_"+ch]; $("tw_"+ch).textContent=nf.format(t.w); $("tc_"+ch).textContent=nf.format(t.c); $("tb_"+ch).textContent=nf2.format(t.b);
+  });
+  $("shipTotal").innerHTML=`Отгружено всего: <b>${nf.format(R.shipped)} $</b> · бонус от отгрузок: <b>${nf2.format(R.bonusUsd)} $</b> ≈ ${nf.format(R.bonusUsd*I.fx)} BYN${R.thrMet?"":" — порог не пройден, не выплачивается"}`;
+
+  $("total").innerHTML=`${nf.format(R.total)}<small>BYN</small>`;
+  $("totalUsd").textContent=I.fx?`≈ ${nf.format(R.total/I.fx)} $ · начислено ${nf.format(R.gross)}, удержано ${nf.format(R.fines)}`:"";
+
+  $("compare").hidden=!changed;
+  if(changed) $("compare").innerHTML=
+    `<div class="row"><span>Месяц по текущей мотивации</span><b>${nf.format(R0.total)} BYN</b></div>
+     <div class="row"><span>Разница за месяц</span><b>${deltaHtml(R.total,R0.total)}</b></div>
+     <div class="row"><span>Разница за квартальную доплату</span><b>${deltaHtml(R.qPay,R0.qPay)}</b></div>`;
+
+  const pills=[];
+  pills.push(`<span class="pill ${I.planAcc&&I.acc>=I.planAcc?"good":"neutral"}">Принято ${nf.format(R.pct)}% плана</span>`);
+  pills.push(`<span class="pill ${I.plan&&R.shipped>=I.plan?"good":"neutral"}">Отгружено ${I.plan?nf.format(R.shipped/I.plan*100):0}% плана</span>`);
+  pills.push(I.probation?`<span class="pill neutral">Испытательный срок</span>`:
+    R.thrMet?`<span class="pill good">Порог ${nf.format(R.thr)} $ пройден</span>`:`<span class="pill bad">Порог ${nf.format(R.thr)} $ не пройден</span>`);
+  if(R.fines>0) pills.push(`<span class="pill warn">Есть удержания</span>`);
+  $("pills").innerHTML=pills.join("");
+
+  $("bar").innerHTML=R.gross>0?R.plus.map((p,i)=>p[1]>0?`<span title="${p[0]}" style="width:${p[1]/R.gross*100}%;background:${SLICE_COLORS[i]}"></span>`:"").join(""):"";
+  $("lines").innerHTML=R.plus.map((p,i)=>`<div class="line"><span class="dot" style="background:${SLICE_COLORS[i]}"></span>
+      <div class="name"><div>${p[0]}</div><div class="det">${p[2]}</div></div><div class="val">${nf.format(p[1])}</div></div>`).join("")
+    + R.minus.map(m=>`<div class="line"><span class="dot" style="background:var(--bad)"></span>
+      <div class="name"><div>${m[0]}</div></div><div class="val neg">−${nf.format(m[1])}</div></div>`).join("");
+
+  const n=P.serviceMin.length;
+  $("tiers").innerHTML=P.serviceMin.map((m,i)=>{
+    const lbl=i===n-1?`<${nf.format(P.serviceMin[n-2])}%`:`${nf.format(m)}%+`;
+    return `<span class="tier ${i===R.tierIdx?"on":""}">${lbl} · ${nf.format(P.serviceBase*P.serviceK[i])}</span>`;
+  }).join("");
+
+  $("qPills").innerHTML=`<span class="pill ${R.qMult>1?"good":"neutral"}">План квартала ${nf.format(R.qPct)}% → ${R.qMult>1?"× "+nf2.format(R.qMult):"без экстрабонуса"}</span>`
+    +(I.qM3===null?`<span class="pill neutral">3-й месяц: ${nf.format(R.monthShipBonus)} BYN из расчёта</span>`:"");
+  $("qTotal").innerHTML=`${nf.format(R.qPay)}<small style="font-size:13px;color:var(--muted);margin-left:4px">BYN</small>`;
+  $("qSub").textContent=R.qMult>1?`${nf.format(R.qSum)} × ${nf2.format(R.qMult-1)} · план квартала ${nf.format(R.qPct)}%`:`план квартала ${nf.format(R.qPct)}% — ниже ${nf.format(Math.min(P.qT1,P.qT2))}%`;
+
+  renderScenarios(I,R0);
+}
+
+/* ---------- Сценарии ---------- */
+function sameP(a,b){return JSON.stringify(a)===JSON.stringify(b)}
+function renderScenarios(I,R0){
+  const list=[{name:"Текущая мотивация",p:DEFAULTS,base:true},...scenarios.map((s,i)=>({...s,i}))];
+  $("scenRows").innerHTML=list.map(s=>{
+    const R=s.base?R0:compute(Object.assign(clone(DEFAULTS),s.p),I);
+    const active=sameP(Object.assign(clone(DEFAULTS),s.p),P);
+    return `<tr class="${active?"active":""}"><td>${esc(s.name)}${s.base?"":`<div>${deltaHtml(R.total,R0.total)}</div>`}</td>
+      <td class="num">${nf.format(R.total)}</td><td class="num">${nf.format(R.qPay)}</td>
+      <td style="white-space:nowrap">${active?`<span class="hint">сейчас</span>`:`<button class="link" data-load="${s.base?"base":s.i}" type="button">Открыть</button>`}
+      ${s.base?"":`<button class="link del" data-del="${s.i}" type="button" aria-label="Удалить сценарий">×</button>`}</td></tr>`;
+  }).join("");
+}
+$("scenRows").addEventListener("click",e=>{
+  const l=e.target.closest("[data-load]"), d=e.target.closest("[data-del]");
+  if(l){P=l.dataset.load==="base"?clone(DEFAULTS):Object.assign(clone(DEFAULTS),clone(scenarios[+l.dataset.load].p)); store.set("motiv.params",P); buildParams(); syncMatrixK(); refresh();}
+  if(d){scenarios.splice(+d.dataset.del,1); store.set("motiv.scenarios",scenarios); refresh();}
+});
+$("saveScen").addEventListener("click",()=>{
+  const name=$("scenName").value.trim()||`Сценарий ${scenarios.length+1}`;
+  scenarios.push({name,p:clone(P)}); store.set("motiv.scenarios",scenarios); $("scenName").value=""; refresh();
+});
+$("resetParams").addEventListener("click",()=>{P=clone(DEFAULTS);store.set("motiv.params",P);buildParams();syncMatrixK();refresh()});
+function syncMatrixK(){["retail","wholesale"].forEach(ch=>P[ch+"K"].forEach((v,i)=>{$(pid(ch+"K",i)).value=v}))}
+
+/* ---------- Старт ---------- */
+buildParams();
+buildMatrix();
+document.addEventListener("input",refresh);
+document.addEventListener("change",refresh);
+refresh();
+</script>
+</body>
+</html>
